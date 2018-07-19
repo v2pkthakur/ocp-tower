@@ -1,0 +1,47 @@
+---
+# tasks file for ocp.preflight
+
+- name: Wait for ssh to be ready
+  wait_for:
+    timeout: 900
+    delay: 10
+    sleep: 30
+    port: 22
+    host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+    search_regex: OpenSSH
+  vars:
+    ansible_connection: local
+
+- name: Set all hostname to fqdn
+  command: 'hostnamectl set-hostname {{ ansible_fqdn }}'
+  tags: hostname-check
+
+
+- name: Remove existing nameservers in resolv.conf
+  lineinfile:
+    path: /etc/resolv.conf
+    regexp: '^nameserver*'
+    state: absent
+  tags: dns-resolv
+
+- name: Set nameserver in resolv.conf
+  lineinfile:
+    path: /etc/resolv.conf
+    line: |
+        nameserver {{ dns_server1 }}
+        nameserver {{ dns_server2 }}
+  tags: dns-resolv
+
+- name: Set nameserver as persistent settings
+  nmcli:
+    conn_name: '{{ connection_name }}'
+    type: ethernet
+    dns4:
+    - '{{ dns_server1 }}'
+    - '{{ dns_server2 }}'
+    state: present
+  tags: dns-resolv
+
+
+
+
